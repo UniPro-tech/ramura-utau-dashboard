@@ -1,5 +1,5 @@
-import Drawer from "@/components/drawer";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
+import Drawer from "@/components/drawer";
 
 export default async function RootLayout({
   children,

@@ -1,25 +1,25 @@
 "use client";
-import * as React from "react";
-import Box from "@mui/material/Box";
-import Tooltip from "@mui/material/Tooltip";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
+import Box from "@mui/material/Box";
+import Tooltip from "@mui/material/Tooltip";
 import {
-  GridRowsProp,
-  GridRowModesModel,
   DataGrid,
-  GridColDef,
+  type GridColDef,
+  type GridRowModesModel,
+  type GridRowsProp,
   Toolbar,
   ToolbarButton,
 } from "@mui/x-data-grid";
 import { randomId } from "@mui/x-data-grid-generator";
 import Link from "next/link";
+import * as React from "react";
 
 declare module "@mui/x-data-grid" {
   interface ToolbarPropsOverrides {
     setRows: (newRows: (oldRows: GridRowsProp) => GridRowsProp) => void;
     setRowModesModel: (
-      newModel: (oldModel: GridRowModesModel) => GridRowModesModel
+      newModel: (oldModel: GridRowModesModel) => GridRowModesModel,
     ) => void;
   }
 }
@@ -87,6 +87,7 @@ export default function FullFeaturedCrudGrid({
                 // id may be number or string
                 onDelete(String(id));
               }}
+              type="button"
               style={{
                 background: "transparent",
                 border: "none",
@@ -95,7 +96,7 @@ export default function FullFeaturedCrudGrid({
               title="Delete"
             >
               <DeleteIcon />
-            </button>
+            </button>,
           );
         }
         return actions;

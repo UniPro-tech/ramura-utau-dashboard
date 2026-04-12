@@ -1,11 +1,11 @@
-import fs from "fs";
+import fs from "node:fs";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const mode = url.searchParams.get("mode") || "arane";
-    const dir = `./public/files/${mode}${mode == "gesshoku" ? "/files" : ""}`;
+    const dir = `./public/files/${mode}${mode === "gesshoku" ? "/files" : ""}`;
 
     if (!fs.existsSync(dir)) {
       return NextResponse.json([]);
@@ -18,10 +18,10 @@ export async function GET(request: Request) {
       name: file,
       size: fs.statSync(`${dir}/${file}`).size,
       createdAt: new Date(
-        fs.statSync(`${dir}/${file}`).birthtime
+        fs.statSync(`${dir}/${file}`).birthtime,
       ).toLocaleString("ja-JP"),
       updatedAt: new Date(fs.statSync(`${dir}/${file}`).mtime).toLocaleString(
-        "ja-JP"
+        "ja-JP",
       ),
     }));
 
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   try {
     const url = new URL(request.url);
     const mode = url.searchParams.get("mode") || "arane";
-    const dir = `./public/files/${mode}${mode == "gesshoku" ? "/files" : ""}`;
+    const dir = `./public/files/${mode}${mode === "gesshoku" ? "/files" : ""}`;
 
     // Ensure directory exists
     await fs.promises.mkdir(dir, { recursive: true });
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     if (!contentType.includes("multipart/form-data")) {
       return NextResponse.json(
         { error: "content-type must be multipart/form-data" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       const arrayBuffer = await f.arrayBuffer();
       await fs.promises.writeFile(
         `${dir}/${filename}`,
-        Buffer.from(arrayBuffer)
+        Buffer.from(arrayBuffer),
       );
     }
 

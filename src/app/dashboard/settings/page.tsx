@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
-import { DataGrid, GridColDef, GridRowModel } from "@mui/x-data-grid";
-import { Button, Stack, TextField, MenuItem } from "@mui/material";
+import { Button, MenuItem, Stack, TextField } from "@mui/material";
+import { DataGrid, type GridColDef, type GridRowModel } from "@mui/x-data-grid";
+import { useCallback, useEffect, useState } from "react";
 
 type Row = { id: string; [k: string]: string };
 type JsonItem = { [k: string]: unknown };
@@ -72,7 +72,7 @@ export default function SettingsPage() {
     try {
       const out: (string | number)[] = [];
       for (const k in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, k) && obj[k]) {
+        if (Object.hasOwn(obj, k) && obj[k]) {
           out.push(k);
         }
       }
@@ -106,7 +106,7 @@ export default function SettingsPage() {
   const loadFileCallback = useCallback(async () => {
     await loadFile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, filename]);
+  }, [loadFile]);
 
   useEffect(() => {
     loadFileCallback();
@@ -155,8 +155,8 @@ export default function SettingsPage() {
             const rec = it as Record<string, unknown>;
             return {
               id: String(i),
-              name: String((rec && rec["name"]) ?? `file-${i}`),
-              label: rec && rec["label"] ? String(rec["label"]) : "",
+              name: String(rec?.name ?? `file-${i}`),
+              label: rec?.label ? String(rec.label) : "",
             };
           });
           setColumns([
@@ -176,7 +176,7 @@ export default function SettingsPage() {
               flex: idx === 0 ? undefined : 1,
               width: idx === 0 ? 300 : undefined,
               editable: true,
-            } as GridColDef)
+            }) as GridColDef,
         );
         const mapped: Row[] = list.map((it: JsonItem, i: number) => {
           const row: Row = { id: String(i) } as Row;
@@ -186,10 +186,10 @@ export default function SettingsPage() {
               v == null
                 ? ""
                 : typeof v === "string" ||
-                  typeof v === "number" ||
-                  typeof v === "boolean"
-                ? String(v)
-                : JSON.stringify(v);
+                    typeof v === "number" ||
+                    typeof v === "boolean"
+                  ? String(v)
+                  : JSON.stringify(v);
           });
           return row;
         });
@@ -350,7 +350,7 @@ export default function SettingsPage() {
             nr[k] = v == null ? "" : String(v);
           });
           setRows((prev) =>
-            prev.map((r) => (r.id === nr.id ? { ...r, ...nr } : r))
+            prev.map((r) => (r.id === nr.id ? { ...r, ...nr } : r)),
           );
           return nr as unknown as GridRowModel;
         }}

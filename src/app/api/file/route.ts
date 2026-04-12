@@ -1,4 +1,4 @@
-import fs from "fs";
+import fs from "node:fs";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -10,7 +10,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "filename required" }, { status: 400 });
 
     const filePath = `./public/files/${mode}${
-      mode == "gesshoku" ? "/files" : ""
+      mode === "gesshoku" ? "/files" : ""
     }/${filename}`;
     if (!fs.existsSync(filePath))
       return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -38,7 +38,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "filename required" }, { status: 400 });
 
     const filePath = `./public/files/${mode}${
-      mode == "gesshoku" ? "/files" : ""
+      mode === "gesshoku" ? "/files" : ""
     }/${filename}`;
     if (!fs.existsSync(filePath))
       return NextResponse.json({ error: "not found" }, { status: 404 });

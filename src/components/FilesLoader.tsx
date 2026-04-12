@@ -1,8 +1,8 @@
 "use client";
+import { InputLabel, LinearProgress, Stack, Typography } from "@mui/material";
 import * as React from "react";
 import FullFeaturedCrudGrid from "../app/datagrid";
 import { useMode } from "./ModeProvider";
-import { InputLabel, LinearProgress, Stack, Typography } from "@mui/material";
 
 type FileRow = {
   id: string;
@@ -99,9 +99,9 @@ export default function FilesLoader() {
     try {
       const res = await fetch(
         `/api/file?mode=${encodeURIComponent(
-          mode
+          mode,
         )}&filename=${encodeURIComponent(id)}`,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
       if (!res.ok) throw new Error("delete failed");
       await fetchFiles();

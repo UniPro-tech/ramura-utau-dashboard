@@ -1,5 +1,5 @@
-import { signIn } from "@/auth";
 import { Button, Stack } from "@mui/material";
+import { signIn } from "@/auth";
 
 export default function Page() {
   return (

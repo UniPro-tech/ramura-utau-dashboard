@@ -45,8 +45,8 @@ export default function Page({
     let mounted = true;
     fetch(
       `/api/file?mode=${encodeURIComponent(mode)}&filename=${encodeURIComponent(
-        filename
-      )}`
+        filename,
+      )}`,
     )
       .then((r) => r.json())
       .then((data) => mounted && setMeta(data))

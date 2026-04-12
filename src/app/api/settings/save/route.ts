@@ -1,4 +1,4 @@
-import fs from "fs";
+import fs from "node:fs";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     if (!mode || !filename || !data) {
       return NextResponse.json(
         { error: "mode, filename and data required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     await fs.promises.writeFile(
       filePath,
       JSON.stringify(payload, null, 2),
-      "utf-8"
+      "utf-8",
     );
     return NextResponse.json({ ok: true });
   } catch (e) {

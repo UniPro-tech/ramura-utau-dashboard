@@ -2,12 +2,6 @@ import NextAuth from "next-auth";
 import Discord from "next-auth/providers/discord";
 
 const trustedUsers = ["957110410891391006", "884399052882583592"];
-const insecurePaths = [
-  "/",
-  "/api/auth/signin",
-  "/api/auth/callback/discord",
-  "/signin",
-];
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [

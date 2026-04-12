@@ -9,7 +9,7 @@ interface ModeContextValue {
 }
 
 const ModeContext = React.createContext<ModeContextValue | undefined>(
-  undefined
+  undefined,
 );
 
 export function ModeProvider({ children }: { children: React.ReactNode }) {
