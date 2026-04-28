@@ -30,10 +30,19 @@ import {
 } from "@mui/material/styles";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
+import Link from "next/link";
 import * as React from "react";
+
 import { useMode } from "./ModeProvider";
 
 const drawerWidth = 240;
+
+// テーマをコンポーネントの外に定義（レンダリング毎の再生成を防ぐ）
+const defaultTheme = createTheme({
+  palette: {
+    mode: "light",
+  },
+});
 
 const openedMixin = (theme: Theme): CSSObject => ({
   width: drawerWidth,
@@ -61,7 +70,6 @@ const DrawerHeader = styled("div")(({ theme }) => ({
   alignItems: "center",
   justifyContent: "flex-end",
   padding: theme.spacing(0, 1),
-  // necessary for content to be below app bar
   ...theme.mixins.toolbar,
 }));
 
@@ -122,170 +130,92 @@ export default function MiniDrawer({
 }: {
   children: React.ReactNode;
 }) {
-  const theme = createTheme({
-    palette: {
-      mode: "light",
-    },
-  });
   const [open, setOpen] = React.useState(false);
 
-  const handleDrawerOpen = () => {
-    setOpen(true);
-  };
-
-  const handleDrawerClose = () => {
-    setOpen(false);
-  };
+  const menuItems = [
+    { text: "ファイル管理", icon: <FolderIcon />, href: "/dashboard" },
+    { text: "設定", icon: <SettingsIcon />, href: "/dashboard/settings" },
+  ];
 
   return (
-    <Box sx={{ display: "flex" }}>
-      <CssBaseline />
-      <AppBar position="fixed" open={open}>
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            onClick={handleDrawerOpen}
-            edge="start"
-            sx={[
-              {
-                marginRight: 5,
-              },
-              open && { display: "none" },
-            ]}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div">
-            ダッシュボード
-          </Typography>
-          <Box
-            sx={{
-              flexGrow: 1,
-              display: "flex",
-              flexDirection: "row",
-              justifyContent: "flex-end",
-            }}
-          >
+    <ThemeProvider theme={defaultTheme}>
+      <Box sx={{ display: "flex" }}>
+        <CssBaseline />
+        <AppBar position="fixed" open={open}>
+          <Toolbar>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              onClick={() => setOpen(true)}
+              edge="start"
+              sx={[{ marginRight: 5 }, open && { display: "none" }]}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography
+              variant="h6"
+              noWrap
+              component="div"
+              sx={{ flexGrow: 1 }}
+            >
+              ダッシュボード
+            </Typography>
             <ModeSelect />
-          </Box>
-        </Toolbar>
-      </AppBar>
-      <Drawer variant="permanent" open={open}>
-        <DrawerHeader>
-          <IconButton onClick={handleDrawerClose}>
-            {theme.direction === "rtl" ? (
-              <ChevronRightIcon />
-            ) : (
-              <ChevronLeftIcon />
-            )}
-          </IconButton>
-        </DrawerHeader>
-        <Divider />
-        <List>
-          <ListItem key={"folder"} disablePadding sx={{ display: "block" }}>
-            <ListItemButton
-              sx={[
-                {
-                  minHeight: 48,
-                  px: 2.5,
-                },
-                open
-                  ? {
-                      justifyContent: "initial",
-                    }
-                  : {
-                      justifyContent: "center",
-                    },
-              ]}
-              href="/dashboard"
-            >
-              <ListItemIcon
-                sx={[
-                  {
-                    minWidth: 0,
-                    justifyContent: "center",
-                  },
-                  open
-                    ? {
-                        mr: 3,
-                      }
-                    : {
-                        mr: "auto",
-                      },
-                ]}
+          </Toolbar>
+        </AppBar>
+
+        <Drawer variant="permanent" open={open}>
+          <DrawerHeader>
+            <IconButton onClick={() => setOpen(false)}>
+              {defaultTheme.direction === "rtl" ? (
+                <ChevronRightIcon />
+              ) : (
+                <ChevronLeftIcon />
+              )}
+            </IconButton>
+          </DrawerHeader>
+          <Divider />
+          <List>
+            {menuItems.map((item) => (
+              <ListItem
+                key={item.text}
+                disablePadding
+                sx={{ display: "block" }}
               >
-                <FolderIcon />
-              </ListItemIcon>
-              <ListItemText
-                primary={"ファイル管理"}
-                sx={[
-                  open
-                    ? {
-                        opacity: 1,
-                      }
-                    : {
-                        opacity: 0,
-                      },
-                ]}
-              />
-            </ListItemButton>
-          </ListItem>
-          <ListItem key={"folder"} disablePadding sx={{ display: "block" }}>
-            <ListItemButton
-              sx={[
-                {
-                  minHeight: 48,
-                  px: 2.5,
-                },
-                open
-                  ? {
-                      justifyContent: "initial",
-                    }
-                  : {
-                      justifyContent: "center",
-                    },
-              ]}
-              href="/dashboard/settings"
-            >
-              <ListItemIcon
-                sx={[
-                  {
-                    minWidth: 0,
-                    justifyContent: "center",
-                  },
-                  open
-                    ? {
-                        mr: 3,
-                      }
-                    : {
-                        mr: "auto",
-                      },
-                ]}
-              >
-                <SettingsIcon />
-              </ListItemIcon>
-              <ListItemText
-                primary={"設定"}
-                sx={[
-                  open
-                    ? {
-                        opacity: 1,
-                      }
-                    : {
-                        opacity: 0,
-                      },
-                ]}
-              />
-            </ListItemButton>
-          </ListItem>
-        </List>
-      </Drawer>
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-        <DrawerHeader />
-        <ThemeProvider theme={theme}>{children}</ThemeProvider>
+                <ListItemButton
+                  component={Link} // Next.jsのLinkとして動作させる
+                  href={item.href}
+                  sx={[
+                    { minHeight: 48, px: 2.5 },
+                    open
+                      ? { justifyContent: "initial" }
+                      : { justifyContent: "center" },
+                  ]}
+                >
+                  <ListItemIcon
+                    sx={[
+                      { minWidth: 0, justifyContent: "center" },
+                      open ? { mr: 3 } : { mr: "auto" },
+                    ]}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.text}
+                    sx={{ opacity: open ? 1 : 0 }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </Drawer>
+
+        <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+          <DrawerHeader />
+          {children}
+        </Box>
       </Box>
-    </Box>
+    </ThemeProvider>
   );
 }
 
@@ -293,22 +223,30 @@ function ModeSelect() {
   const { mode, setMode } = useMode();
 
   return (
-    <FormControl
-      sx={{
-        ml: 2,
-      }}
-      size="small"
-    >
-      <InputLabel id="mode-select-label" className="text-white">
+    <FormControl size="small" sx={{ ml: 2, minWidth: 120 }}>
+      <InputLabel
+        id="mode-select-label"
+        sx={{ color: "white", "&.Mui-focused": { color: "white" } }}
+      >
         モード
       </InputLabel>
       <Select
         labelId="mode-select-label"
         id="mode-select"
-        sx={{ color: "white" }}
         value={mode}
         label="モード"
         onChange={(e) => setMode(e.target.value as string)}
+        sx={{
+          color: "white",
+          ".MuiOutlinedInput-notchedOutline": {
+            borderColor: "rgba(255, 255, 255, 0.5)",
+          },
+          "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
+          "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+            borderColor: "white",
+          },
+          ".MuiSvgIcon-root": { color: "white" },
+        }}
       >
         <MenuItem value="arane">荒音の夜</MenuItem>
         <MenuItem value="gesshoku">月蝕</MenuItem>

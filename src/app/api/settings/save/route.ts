@@ -1,4 +1,6 @@
-import fs from "node:fs";
+import { existsSync } from "node:fs";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -9,28 +11,49 @@ export async function POST(request: Request) {
       filename: string;
       data: unknown;
     };
-    if (!mode || !filename || !data) {
+
+    // 1. バリデーションの強化
+    if (!mode || !filename || data === undefined) {
       return NextResponse.json(
-        { error: "mode, filename and data required" },
+        { error: "mode, filename and data are required" },
         { status: 400 },
       );
     }
 
-    const dir = `./public/files/${mode}/settings`;
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    // 2. パス構築の安全化
+    // 設定ファイル専用のサブディレクトリ構造を定義
+    const subPath = mode === "gesshoku" ? "gesshoku/files" : mode;
+    const dir = path.join(
+      process.cwd(),
+      "public",
+      "files",
+      subPath,
+      "settings",
+    );
+    const safeFilename = path.basename(filename).endsWith(".json")
+      ? path.basename(filename)
+      : `${path.basename(filename)}.json`;
+    const filePath = path.join(dir, safeFilename);
+
+    // 3. 非同期でのディレクトリ作成
+    if (!existsSync(dir)) {
+      await fs.mkdir(dir, { recursive: true });
     }
 
-    const filePath = `${dir}/${filename}`;
-    const payload = { data };
-    await fs.promises.writeFile(
-      filePath,
-      JSON.stringify(payload, null, 2),
-      "utf-8",
-    );
-    return NextResponse.json({ ok: true });
+    // 4. 書き込み処理（非同期）
+    const payload = {
+      data,
+      updatedAt: new Date().toISOString(), // 後で管理しやすいように更新日時を付与するのもアリ
+    };
+
+    await fs.writeFile(filePath, JSON.stringify(payload, null, 2), "utf-8");
+
+    return NextResponse.json({ ok: true, path: safeFilename });
   } catch (e) {
-    console.error("/api/settings/save error", e);
-    return NextResponse.json({ error: "internal" }, { status: 500 });
+    console.error("[API_SETTINGS_SAVE_ERROR]:", e);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }

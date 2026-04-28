@@ -1,71 +1,104 @@
-import fs from "node:fs";
+import { existsSync } from "node:fs";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { NextResponse } from "next/server";
 
+// モードに応じた保存先ディレクトリを計算するヘルパー
+const getTargetDirectory = (mode: string) => {
+  const subPath = mode === "gesshoku" ? "gesshoku/files" : mode;
+  return path.join(process.cwd(), "public", "files", subPath);
+};
+
+// GET: ファイル一覧の取得
 export async function GET(request: Request) {
   try {
-    const url = new URL(request.url);
-    const mode = url.searchParams.get("mode") || "arane";
-    const dir = `./public/files/${mode}${mode === "gesshoku" ? "/files" : ""}`;
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get("mode") || "arane";
+    const dir = getTargetDirectory(mode);
 
-    if (!fs.existsSync(dir)) {
-      return NextResponse.json([]);
-    }
+    if (!existsSync(dir)) return NextResponse.json([]);
 
-    const files = await fs.promises.readdir(dir);
+    const fileNames = await fs.readdir(dir);
 
-    const rows = files.map((file) => ({
-      id: file,
-      name: file,
-      size: fs.statSync(`${dir}/${file}`).size,
-      createdAt: new Date(
-        fs.statSync(`${dir}/${file}`).birthtime,
-      ).toLocaleString("ja-JP"),
-      updatedAt: new Date(fs.statSync(`${dir}/${file}`).mtime).toLocaleString(
-        "ja-JP",
-      ),
-    }));
+    // 並列でファイル情報を取得
+    const rows = await Promise.all(
+      fileNames.map(async (name) => {
+        const stats = await fs.stat(path.join(dir, name));
+        return {
+          id: name,
+          name: name,
+          size: stats.size,
+          createdAt: stats.birthtime.toLocaleString("ja-JP"),
+          updatedAt: stats.mtime.toLocaleString("ja-JP"),
+        };
+      }),
+    );
 
     return NextResponse.json(rows);
   } catch (err) {
-    console.error("/api/files error", err);
-    return NextResponse.json([], { status: 500 });
+    console.error("GET Error:", err);
+    return NextResponse.json(
+      { error: "一覧の取得に失敗しました" },
+      { status: 500 },
+    );
   }
 }
 
+// POST: ファイルのアップロード
 export async function POST(request: Request) {
   try {
-    const url = new URL(request.url);
-    const mode = url.searchParams.get("mode") || "arane";
-    const dir = `./public/files/${mode}${mode === "gesshoku" ? "/files" : ""}`;
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get("mode") || "arane";
+    const dir = getTargetDirectory(mode);
 
-    // Ensure directory exists
-    await fs.promises.mkdir(dir, { recursive: true });
+    // ディレクトリがなければ作成
+    await fs.mkdir(dir, { recursive: true });
 
-    const contentType = request.headers.get("content-type") || "";
-    if (!contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    const files = formData.getAll("files") as File[];
+
+    await Promise.all(
+      files.map(async (file) => {
+        const safeName = path.basename(file.name); // パストラバーサル対策
+        const arrayBuffer = await file.arrayBuffer();
+        await fs.writeFile(path.join(dir, safeName), Buffer.from(arrayBuffer));
+      }),
+    );
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("POST Error:", err);
+    return NextResponse.json(
+      { error: "アップロードに失敗しました" },
+      { status: 500 },
+    );
+  }
+}
+
+// DELETE: ファイルの削除
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get("mode") || "arane";
+    const filename = searchParams.get("filename");
+
+    if (!filename) {
       return NextResponse.json(
-        { error: "content-type must be multipart/form-data" },
+        { error: "ファイル名が指定されていません" },
         { status: 400 },
       );
     }
 
-    // In Next.js route handlers running on Node, Request is a web Fetch API Request.
-    // Use formData() to parse multipart body.
-    const formData = await request.formData();
-    const entries = Array.from(formData.getAll("files") as File[]);
+    const dir = getTargetDirectory(mode);
+    const filePath = path.join(dir, path.basename(filename));
 
-    for (const f of entries) {
-      const filename = f.name;
-      const arrayBuffer = await f.arrayBuffer();
-      await fs.promises.writeFile(
-        `${dir}/${filename}`,
-        Buffer.from(arrayBuffer),
-      );
+    if (existsSync(filePath)) {
+      await fs.unlink(filePath);
     }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("/api/files POST error", err);
-    return NextResponse.json({ error: "internal" }, { status: 500 });
+    console.error("DELETE Error:", err);
+    return NextResponse.json({ error: "削除に失敗しました" }, { status: 500 });
   }
 }

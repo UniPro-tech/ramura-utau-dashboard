@@ -1,91 +1,85 @@
 "use client";
+
 import {
+  Alert,
   Button,
   Input,
   List,
   ListItem,
+  Paper,
   Stack,
   Typography,
 } from "@mui/material";
 import * as React from "react";
 import { useMode } from "@/components/ModeProvider";
+import type { FileRow } from "@/types/file";
 import { uploadFile } from "./server";
 
-type FileMeta = {
-  id: string;
-  name: string;
-  size: number;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export default function Page({
-  params,
+export default function EditPage({
+  params: paramsPromise,
 }: {
-  params: { filename: string } | Promise<{ filename: string }>;
+  params: Promise<{ filename: string }>;
 }) {
-  const [filename, setFilename] = React.useState<string | null>(null);
-  const [meta, setMeta] = React.useState<FileMeta | null>(null);
+  const params = React.use(paramsPromise);
+  const { filename } = params;
   const { mode } = useMode();
 
-  React.useEffect(() => {
-    let mounted = true;
-    Promise.resolve(params).then((p) => {
-      const pp = p as { filename: string };
-      const fn = pp.filename;
-      if (mounted) setFilename(fn);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, [params]);
+  const [meta, setMeta] = React.useState<FileRow | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!filename) return;
-    let mounted = true;
-    fetch(
-      `/api/file?mode=${encodeURIComponent(mode)}&filename=${encodeURIComponent(
-        filename,
-      )}`,
-    )
+    let active = true;
+    fetch(`/api/files?mode=${encodeURIComponent(mode)}`)
       .then((r) => r.json())
-      .then((data) => mounted && setMeta(data))
-      .catch((e) => console.error(e));
+      .then((data: FileRow[]) => {
+        if (!active) return;
+        const target = data.find((f) => f.id === filename);
+        setMeta(target || null);
+        setLoading(false);
+      })
+      .catch(() => active && setLoading(false));
     return () => {
-      mounted = false;
+      active = false;
     };
   }, [filename, mode]);
 
-  if (!filename) return <div>Loading...</div>;
+  const handleFormAction = async (formData: FormData) => {
+    const result = await uploadFile(formData);
+    if (result?.error) setError(result.error);
+  };
+
+  if (loading) return <Typography p={3}>読み込み中...</Typography>;
 
   return (
-    <Stack>
-      <Typography variant="h4" gutterBottom>
-        Editing: {filename}
+    <Stack spacing={3} sx={{ p: 3, maxWidth: 800 }}>
+      <Typography variant="h4" fontWeight="bold">
+        編集: {filename}
       </Typography>
-      <Typography variant="h5" gutterBottom>
-        ファイル情報
-      </Typography>
-      <List>
-        <ListItem>作成日時: {meta ? meta.createdAt : "-"}</ListItem>
-        <ListItem>更新日時: {meta ? meta.updatedAt : "-"}</ListItem>
-        <ListItem>サイズ: {meta ? `${meta.size} bytes` : "-"}</ListItem>
-      </List>
-      <Typography variant="h5">アクション</Typography>
-      <form action={uploadFile}>
-        <Stack direction={"row"}>
-          <Input hidden type="text" name="filename" value={filename} readOnly />
-          <Input hidden type="text" name="mode" value={mode} readOnly />
+
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <List dense>
+          <ListItem>作成日: {meta?.createdAt || "-"}</ListItem>
+          <ListItem>
+            サイズ: {meta ? `${(meta.size / 1024).toFixed(2)} KB` : "-"}
+          </ListItem>
+        </List>
+      </Paper>
+
+      {error && <Alert severity="error">{error}</Alert>}
+
+      <form action={handleFormAction}>
+        <input type="hidden" name="filename" value={filename} />
+        <input type="hidden" name="mode" value={mode} />
+        <Stack direction="row" spacing={2}>
           <Input
             type="file"
-            inputProps={{
-              accept: `.${filename.split(".").pop()}`,
-            }}
             name="file"
-            placeholder="ファイルを選択"
+            required
+            inputProps={{ accept: `.${filename.split(".").pop()}` }}
           />
           <Button variant="contained" type="submit">
-            ファイルを更新する
+            上書き更新
           </Button>
         </Stack>
       </form>

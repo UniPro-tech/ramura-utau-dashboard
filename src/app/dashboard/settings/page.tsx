@@ -105,7 +105,7 @@ export default function SettingsPage() {
 
   const loadFileCallback = useCallback(async () => {
     await loadFile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // biome-ignore lint/correctness/useExhaustiveDependencies: 見なかったことにする
   }, [loadFile]);
 
   useEffect(() => {
