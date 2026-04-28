@@ -24,7 +24,8 @@ jobs:
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
 
       - name: Extract tag name
-        run: tagname=${GITHUB_REF#refs/*/} && echo "TAG_NAME=${tagname#v}" >> $GITHUB_ENV
+        run: tagname=${GITHUB_REF#refs/*/} && echo "TAG_NAME=${tagname#v}" >>
+          $GITHUB_ENV
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
@@ -54,6 +55,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=registry.uniproject.jp/ramura/utau-dashboard:buildcache
           cache-to: type=registry,ref=registry.uniproject.jp/ramura/utau-dashboard:buildcache,mode=max
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       - name: Sign Docker images with GitHub OIDC (cosign keyless)
         env:
