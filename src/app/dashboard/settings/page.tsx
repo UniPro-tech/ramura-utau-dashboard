@@ -1,360 +1,243 @@
 "use client";
 
-import { Button, MenuItem, Stack, TextField } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  MenuItem,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { DataGrid, type GridColDef, type GridRowModel } from "@mui/x-data-grid";
 import { useCallback, useEffect, useState } from "react";
 
-type Row = { id: string; [k: string]: string };
-type JsonItem = { [k: string]: unknown };
+// 動的な行データの型定義
+type Row = { id: string; [key: string]: string };
 
 export default function SettingsPage() {
   const [rows, setRows] = useState<Row[]>([]);
+  const [columns, setColumns] = useState<GridColDef[]>([]);
   const [mode, setMode] = useState<string>("gesshoku");
   const [filename, setFilename] = useState<string>("files.json");
   const [loading, setLoading] = useState(false);
-  const [columns, setColumns] = useState<GridColDef[]>([]);
-  const [selectionModel, setSelectionModel] = useState<(string | number)[]>([]);
+  const [selectionModel, setSelectionModel] = useState([]);
+  const [error, setError] = useState<string | null>(null);
 
-  function extractIdsFromSelection(sel: unknown): (string | number)[] {
-    if (!sel) return [];
-    // array of ids
-    if (Array.isArray(sel)) return sel.map((v: unknown) => String(v));
-    const obj = sel as Record<string, unknown>;
-    // If shape is { type, ids: ... } (newer MUI), prefer obj.ids
-    const idsCandidate = obj?.ids as unknown;
-    if (idsCandidate != null) {
-      // array
-      if (Array.isArray(idsCandidate))
-        return (idsCandidate as unknown[]).map((v) => String(v));
-      // if it has forEach
-      try {
-        const s = idsCandidate as unknown as {
-          forEach?: (cb: (v: unknown) => void) => void;
-          keys?: () => Iterable<unknown>;
-        };
-        if (typeof s.forEach === "function") {
-          const out: (string | number)[] = [];
-          s.forEach!((v: unknown) => out.push(String(v)));
-          return out;
-        }
-        if (typeof s.keys === "function") {
-          const out: (string | number)[] = [];
-          for (const k of s.keys!()) out.push(String(k));
-          return out;
-        }
-      } catch (err) {
-        void err;
-      }
-    }
-    // common shape: { ids: [...] }
-    if (Array.isArray(obj?.ids))
-      return (obj.ids as unknown[]).map((v) => String(v));
-    // if it has forEach (Set/Map-like)
-    try {
-      type ForEachLike = { forEach?: (cb: (v: unknown) => void) => void };
-      type KeysLike = { keys?: () => Iterable<unknown> };
-      const s = sel as unknown as ForEachLike & KeysLike;
-      if (typeof s.forEach === "function") {
-        const out: (string | number)[] = [];
-        s.forEach!((v) => out.push(String(v)));
-        return out;
-      }
-      if (typeof s.keys === "function") {
-        const out: (string | number)[] = [];
-        for (const k of s.keys!()) out.push(String(k));
-        return out;
-      }
-    } catch (err) {
-      void err;
-    }
-
-    // last resort: if it's a plain object mapping id->true
-    try {
-      const out: (string | number)[] = [];
-      for (const k in obj) {
-        if (Object.hasOwn(obj, k) && obj[k]) {
-          out.push(k);
-        }
-      }
-      if (out.length) return out;
-    } catch (err) {
-      void err;
-    }
-
-    return [];
-  }
-
-  // initialize basic columns
-  useEffect(() => {
-    if (filename === "files.json") {
-      setColumns([
-        {
-          field: "name",
-          headerName: "ファイル名",
-          width: 300,
-          editable: true,
-        },
-        { field: "label", headerName: "ラベル", flex: 1, editable: true },
-      ]);
-    } else {
-      setColumns([
-        { field: "value", headerName: "値", flex: 1, editable: true },
-      ]);
-    }
-  }, [filename]);
-
-  const loadFileCallback = useCallback(async () => {
-    await loadFile();
-    // biome-ignore lint/correctness/useExhaustiveDependencies: 見なかったことにする
-  }, [loadFile]);
-
-  useEffect(() => {
-    loadFileCallback();
-  }, [loadFileCallback]);
-
-  async function loadFile() {
+  /**
+   * ファイル読み込み
+   */
+  const loadFile = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch(`/files/${mode}/settings/${filename}`);
-      if (!res.ok) throw new Error("failed to load");
-      const data = await res.json();
-      // Expecting { data: [ { name, label } ] } or { data: [] }
-      const list: JsonItem[] = (data.data || []) as JsonItem[];
+      // 保存先ディレクトリ構造に合わせてフェッチ
+      const subPath = mode === "gesshoku" ? "gesshoku/files" : mode;
+      const res = await fetch(`/files/${subPath}/settings/${filename}`);
 
-      // detect shape
+      if (!res.ok) throw new Error("設定ファイルが見つかりません");
+
+      const json = await res.json();
+      const list = (json.data || []) as any[];
+
       if (list.length === 0) {
-        // keep current columns/rows (empty)
         setRows([]);
         return;
       }
 
-      const first = list[0];
-      // primitive array (strings/numbers)
-      if (
-        typeof first === "string" ||
-        typeof first === "number" ||
-        typeof first === "boolean"
-      ) {
-        const mapped: Row[] = list.map((it: JsonItem, i: number) => ({
-          id: String(i),
-          value: String(it as unknown as string | number | boolean),
-        }));
+      const firstItem = list[0];
+
+      // 1. プリミティブ配列の場合 (例: ["value1", "value2"])
+      if (typeof firstItem !== "object" || firstItem === null) {
         setColumns([
-          { field: "value", headerName: "値", flex: 1, editable: true },
+          { field: "value", headerName: "VALUE", flex: 1, editable: true },
         ]);
-        setRows(mapped);
-        return;
+        setRows(list.map((v, i) => ({ id: String(i), value: String(v) })));
       }
+      // 2. オブジェクト配列の場合 (例: [{name: "...", label: "..."}])
+      else {
+        const keys = Object.keys(firstItem);
+        const cols: GridColDef[] = keys.map((k) => ({
+          field: k,
+          headerName: k.toUpperCase(),
+          flex: 1,
+          editable: true,
+        }));
 
-      // object items: build columns from keys
-      if (typeof first === "object" && first !== null) {
-        const keys = Object.keys(first as Record<string, unknown>);
-        // special-case files.json prefer name/label ordering
-        if (filename === "files.json") {
-          const mapped: Row[] = list.map((it: JsonItem, i: number) => {
-            const rec = it as Record<string, unknown>;
-            return {
-              id: String(i),
-              name: String(rec?.name ?? `file-${i}`),
-              label: rec?.label ? String(rec.label) : "",
-            };
-          });
-          setColumns([
-            { field: "name", headerName: "名前", width: 300, editable: true },
-            { field: "label", headerName: "ラベル", flex: 1, editable: true },
-          ]);
-          // done
-          setRows(mapped);
-          return;
-        }
-
-        const cols = keys.map(
-          (k, idx) =>
-            ({
-              field: k,
-              headerName: k,
-              flex: idx === 0 ? undefined : 1,
-              width: idx === 0 ? 300 : undefined,
-              editable: true,
-            }) as GridColDef,
-        );
-        const mapped: Row[] = list.map((it: JsonItem, i: number) => {
-          const row: Row = { id: String(i) } as Row;
-          keys.forEach((k) => {
-            const v = (it as Record<string, unknown>)[k];
-            row[k] =
-              v == null
-                ? ""
-                : typeof v === "string" ||
-                    typeof v === "number" ||
-                    typeof v === "boolean"
-                  ? String(v)
-                  : JSON.stringify(v);
-          });
-          return row;
-        });
         setColumns(cols);
-        setRows(mapped);
-        return;
+        setRows(
+          list.map((item, i) => {
+            const row: Row = { id: String(i) };
+            keys.forEach((k) => {
+              row[k] = item[k] == null ? "" : String(item[k]);
+            });
+            return row;
+          }),
+        );
       }
-
-      // fallback
-      setRows([]);
     } catch (e) {
-      console.error(e);
+      setError(
+        "設定ファイルを読み込めませんでした。新規作成するか、モードを確認してください。",
+      );
       setRows([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, [mode, filename]);
 
-  async function handleSave() {
+  useEffect(() => {
+    loadFile();
+  }, [loadFile]);
+
+  /**
+   * 保存処理
+   */
+  const handleSave = async () => {
     setLoading(true);
     try {
-      let payload: unknown[] = [];
-      if (filename === "files.json") {
-        // restore { name, label } entries
-        payload = rows.map((r) => ({ name: r.name, label: r.label }));
-      } else {
-        // generic: attempt to parse JSON values, fallback to string
-        payload = rows.map((r) => {
-          const raw = r.value ?? r.key ?? "";
-          try {
-            return JSON.parse(raw);
-          } catch {
-            return raw;
-          }
-        });
-      }
+      const payload = rows.map(({ id, ...data }) => {
+        const keys = Object.keys(data);
+        // カラムが "value" 1つだけなら、配列に戻す際に文字列/数値として扱う
+        if (keys.length === 1 && keys[0] === "value") return data.value;
+        return data;
+      });
 
       const res = await fetch(`/api/settings/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode, filename, data: payload }),
       });
-      if (!res.ok) throw new Error("save failed");
-      alert("保存しました");
-      await loadFile();
+
+      if (!res.ok) throw new Error();
+      alert("保存しました。");
     } catch (e) {
-      console.error(e);
-      alert("保存に失敗しました");
+      alert("保存に失敗しました。API Routeの設定を確認してください。");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  function handleAdd() {
-    // create a new row with empty values for current columns
+  /**
+   * 行追加
+   */
+  const handleAdd = () => {
     const newId = String(Date.now());
-    const newRow: Row = { id: newId } as Row;
-
-    if (filename === "files.json") {
-      // provide sensible defaults for files.json
-      newRow.name = `new-file-${rows.length + 1}`;
-      newRow.label = "";
-    } else if (columns.length === 0) {
-      // ensure at least a value column
-      setColumns([
-        { field: "value", headerName: "値", flex: 1, editable: true },
-      ]);
-      newRow.value = "";
-    } else {
-      columns.forEach((c) => {
-        if (c.field === "id") return;
-        newRow[c.field] = "";
-      });
-    }
-
+    const newRow: Row = { id: newId };
+    columns.forEach((c) => {
+      newRow[c.field] = "";
+    });
     setRows((prev) => [...prev, newRow]);
-  }
+  };
 
-  function handleDelete() {
-    console.log("handleDelete selectionModel:", selectionModel);
-    console.log("handleDelete rows before:", rows);
-    if (!selectionModel || selectionModel.length === 0) return;
+  /**
+   * 行削除
+   */
+  const handleDelete = () => {
+    if (selectionModel.length === 0) return;
     const selSet = new Set(selectionModel.map((s) => String(s)));
-    setRows((prev) => prev.filter((r) => !selSet.has(String(r.id))));
+    setRows((prev) => prev.filter((r) => !selSet.has(r.id)));
     setSelectionModel([]);
-    console.log("handleDelete rows after:", rows);
-  }
+  };
+
+  /**
+   * セル編集の確定処理
+   */
+  const processRowUpdate = (newRow: GridRowModel) => {
+    const updatedRow = newRow as Row;
+    // forEachで値を返さないよう修正
+    setRows((prev) =>
+      prev.map((r) => (r.id === updatedRow.id ? updatedRow : r)),
+    );
+    return updatedRow;
+  };
 
   return (
-    <div style={{ height: 600, width: "100%", padding: 16 }}>
-      <Stack direction="row" spacing={2} alignItems="center" marginBottom={2}>
-        <TextField
-          select
-          label="mode"
-          value={mode}
-          onChange={(e) => setMode(e.target.value)}
-        >
-          <MenuItem value="gesshoku">gesshoku</MenuItem>
-          <MenuItem value="arane">arane</MenuItem>
-        </TextField>
+    <Stack spacing={2} sx={{ p: 3, height: "calc(100vh - 100px)" }}>
+      <Typography variant="h5" fontWeight="bold">
+        JSON 設定エディタ
+      </Typography>
 
-        <TextField
-          select
-          label="filename"
-          value={filename}
-          onChange={(e) => setFilename(e.target.value)}
-        >
-          <MenuItem value="files.json">files.json</MenuItem>
-          <MenuItem value="video.json">video.json</MenuItem>
-        </TextField>
+      <Paper variant="outlined" sx={{ p: 2, backgroundColor: "#fcfcfc" }}>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <TextField
+            select
+            size="small"
+            label="モード"
+            value={mode}
+            onChange={(e) => setMode(e.target.value)}
+            sx={{ minWidth: 140 }}
+          >
+            <MenuItem value="gesshoku">月蝕 (gesshoku)</MenuItem>
+            <MenuItem value="arane">荒音 (arane)</MenuItem>
+          </TextField>
 
-        <Button variant="contained" onClick={loadFile} disabled={loading}>
-          再読み込み
-        </Button>
+          <TextField
+            select
+            size="small"
+            label="ファイル"
+            value={filename}
+            onChange={(e) => setFilename(e.target.value)}
+            sx={{ minWidth: 160 }}
+          >
+            <MenuItem value="files.json">files.json</MenuItem>
+            <MenuItem value="video.json">video.json</MenuItem>
+          </TextField>
 
-        <Button
-          variant="outlined"
-          color="primary"
-          onClick={handleAdd}
-          disabled={loading}
-        >
-          追加
-        </Button>
+          <Button variant="text" onClick={loadFile} disabled={loading}>
+            再読込
+          </Button>
 
-        <Button
-          variant="outlined"
-          color="secondary"
-          onClick={handleDelete}
-          disabled={loading || selectionModel.length === 0}
-        >
-          削除
-        </Button>
+          <Box sx={{ flexGrow: 1 }} />
 
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleSave}
-          disabled={loading}
-        >
-          保存
-        </Button>
-      </Stack>
+          <Button variant="outlined" size="small" onClick={handleAdd}>
+            行追加
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            color="error"
+            onClick={handleDelete}
+            disabled={selectionModel.length === 0}
+          >
+            削除
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={handleSave}
+            disabled={loading}
+          >
+            保存
+          </Button>
+        </Stack>
+      </Paper>
 
-      <DataGrid
-        rows={rows}
-        columns={columns}
-        checkboxSelection
-        onRowSelectionModelChange={(newSel) => {
-          console.log("onRowSelectionModelChange received:", newSel);
-          setSelectionModel(extractIdsFromSelection(newSel));
+      {error && <Alert severity="info">{error}</Alert>}
+
+      <Box
+        sx={{
+          flexGrow: 1,
+          backgroundColor: "white",
+          borderRadius: 1,
+          overflow: "hidden",
         }}
-        editMode="row"
-        processRowUpdate={(newRow: GridRowModel) => {
-          const nr: Row = { id: String(newRow.id) } as Row;
-          Object.keys(newRow).forEach((k) => {
-            if (k === "id") return;
-            const v = (newRow as unknown as Record<string, unknown>)[k];
-            nr[k] = v == null ? "" : String(v);
-          });
-          setRows((prev) =>
-            prev.map((r) => (r.id === nr.id ? { ...r, ...nr } : r)),
-          );
-          return nr as unknown as GridRowModel;
-        }}
-      />
-    </div>
+      >
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          loading={loading}
+          checkboxSelection
+          disableRowSelectionOnClick
+          onRowSelectionModelChange={(newModel) =>
+            setSelectionModel(newModel as never)
+          }
+          processRowUpdate={processRowUpdate}
+          // セルをダブルクリックして編集を開始する設定
+          editMode="row"
+          sx={{ border: "none" }}
+        />
+      </Box>
+    </Stack>
   );
 }
