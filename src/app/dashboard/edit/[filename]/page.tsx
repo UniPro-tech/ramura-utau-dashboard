@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Alert,
   Button,
   Input,
   List,
@@ -10,6 +9,8 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { useRouter } from "next/navigation";
+import { useSnackbar } from "notistack";
 import * as React from "react";
 import { useMode } from "@/components/ModeProvider";
 import type { FileRow } from "@/types/file";
@@ -26,7 +27,10 @@ export default function EditPage({
 
   const [meta, setMeta] = React.useState<FileRow | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [inProgress, setInProgress] = React.useState(false);
+
+  const { enqueueSnackbar } = useSnackbar();
+  const router = useRouter();
 
   React.useEffect(() => {
     let active = true;
@@ -45,8 +49,23 @@ export default function EditPage({
   }, [filename, mode]);
 
   const handleFormAction = async (formData: FormData) => {
-    const result = await uploadFile(formData);
-    if (result?.error) setError(result.error);
+    setInProgress(true);
+    try {
+      const result = await uploadFile(formData);
+      if (result?.error) enqueueSnackbar(result.error, { variant: "error" });
+      else {
+        enqueueSnackbar("アップロードが正常に完了しました！", {
+          variant: "success",
+        });
+        router.push("/dashboard");
+      }
+    } catch (e) {
+      console.error(e);
+      enqueueSnackbar("アップロード中にエラーが発生しました", {
+        variant: "error",
+      });
+    }
+    setInProgress(false);
   };
 
   if (loading) return <Typography p={3}>読み込み中...</Typography>;
@@ -66,8 +85,6 @@ export default function EditPage({
         </List>
       </Paper>
 
-      {error && <Alert severity="error">{error}</Alert>}
-
       <form action={handleFormAction}>
         <input type="hidden" name="filename" value={filename} />
         <input type="hidden" name="mode" value={mode} />
@@ -77,8 +94,9 @@ export default function EditPage({
             name="file"
             required
             inputProps={{ accept: `.${filename.split(".").pop()}` }}
+            disabled={inProgress}
           />
-          <Button variant="contained" type="submit">
+          <Button variant="contained" type="submit" disabled={inProgress}>
             上書き更新
           </Button>
         </Stack>

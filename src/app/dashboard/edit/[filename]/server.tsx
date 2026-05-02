@@ -2,7 +2,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
 export async function uploadFile(formData: FormData) {
   const file = formData.get("file") as File;
@@ -26,6 +25,4 @@ export async function uploadFile(formData: FormData) {
   } catch (_e) {
     return { error: "書き込みエラーが発生しました。" };
   }
-
-  redirect("/dashboard");
 }
