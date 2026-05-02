@@ -11,6 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import { DataGrid, type GridColDef, type GridRowModel } from "@mui/x-data-grid";
+import { useSnackbar } from "notistack";
 import { useCallback, useEffect, useState } from "react";
 
 // 動的な行データの型定義
@@ -76,7 +77,7 @@ export default function SettingsPage() {
           }),
         );
       }
-    } catch (e) {
+    } catch {
       setError(
         "設定ファイルを読み込めませんでした。新規作成するか、モードを確認してください。",
       );
@@ -89,6 +90,8 @@ export default function SettingsPage() {
   useEffect(() => {
     loadFile();
   }, [loadFile]);
+
+  const { enqueueSnackbar } = useSnackbar();
 
   /**
    * 保存処理
@@ -110,9 +113,12 @@ export default function SettingsPage() {
       });
 
       if (!res.ok) throw new Error();
-      alert("保存しました。");
-    } catch (e) {
-      alert("保存に失敗しました。API Routeの設定を確認してください。");
+      enqueueSnackbar("保存しました！", { variant: "success" });
+    } catch {
+      enqueueSnackbar(
+        "保存に失敗しました。API Routeの設定を確認してください。",
+        { variant: "error" },
+      );
     } finally {
       setLoading(false);
     }
