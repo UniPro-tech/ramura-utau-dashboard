@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     proxyClientMaxBodySize: "1gb",
   },
   output: "standalone",
+  poweredByHeader: false,
 };
 
 export default nextConfig;
