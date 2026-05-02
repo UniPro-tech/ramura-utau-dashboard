@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { SnackbarProvider } from "notistack";
-import ModeProvider from "../components/ModeProvider";
+import { ClientProviders } from "@/components/ClientProviders";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,9 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <SnackbarProvider autoHideDuration={3000}>
-          <ModeProvider>{children}</ModeProvider>
-        </SnackbarProvider>
+        <ClientProviders>{children}</ClientProviders>
       </body>
     </html>
   );
