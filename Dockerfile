@@ -5,7 +5,7 @@
 # This Dockerfile.bun is specifically configured for projects using Bun
 # For npm/pnpm or yarn, refer to the Dockerfile instead
 
-FROM oven/bun@sha256:e10577f0db68676a7024391c6e5cb4b879ebd17188ab750cf10024a6d700e5c4 AS dependencies
+FROM oven/bun@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6 AS dependencies
 
 # Set working directory
 WORKDIR /app
@@ -21,7 +21,7 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
 # Stage 2: Build Next.js application in standalone mode
 # ============================================
 
-FROM oven/bun@sha256:e10577f0db68676a7024391c6e5cb4b879ebd17188ab750cf10024a6d700e5c4 AS builder
+FROM oven/bun@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6 AS builder
 
 # Set working directory
 WORKDIR /app
@@ -57,7 +57,7 @@ RUN bun run build
 # Stage 3: Run Next.js application
 # ============================================
 
-FROM oven/bun@sha256:e10577f0db68676a7024391c6e5cb4b879ebd17188ab750cf10024a6d700e5c4 AS runner
+FROM oven/bun@sha256:5ff609364c049b54eb0ff560ec96319729a972078ef2c755d758f0c6ef89c2d6 AS runner
 
 # Set working directory
 WORKDIR /app
